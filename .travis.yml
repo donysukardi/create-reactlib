@@ -1,5 +1,15 @@
+sudo: false
 language: node_js
-cache: yarn
 node_js:
-  - 9
-  - 8
+  - '9'
+cache:
+  yarn: true
+  directories:
+    - ~/.npm
+    - ~/.cache
+notifications:
+  email: false
+script: yarn validate
+after_success: kcd-scripts travis-after-success
+branches:
+  only: master
