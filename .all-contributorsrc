@@ -1,0 +1,27 @@
+{
+  "projectName": "create-reactlib",
+  "projectOwner": "donysukardi",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": true,
+  "contributors": [
+    {
+      "login": "donysukardi",
+      "name": "Dony Sukardi",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/410792?v=4",
+      "profile": "http://dsds.io",
+      "contributions": [
+        "code",
+        "doc",
+        "example",
+        "ideas",
+        "review",
+        "test"
+      ]
+    }
+  ]
+}
