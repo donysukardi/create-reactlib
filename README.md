@@ -73,6 +73,7 @@ The only compulsory parameter is `name`, which is the name of your new package.
 
 | parameter               | type    | default                           | description                                                                      |
 | ----------------------- | ------- | --------------------------------- | -------------------------------------------------------------------------------- |
+| `config`                | string  | ""                                | Path to configuration to load                                                    |
 | `preact`                | boolean | false                             | Flag to include preact build                                                     |
 | `description`           | string  | ""                                | Description of the new package                                                   |
 | `author`                | string  | "<github-username>"               | Author for package.json and README.md                                            |
@@ -89,7 +90,8 @@ CLI flags
 
 | parameter               | short | long                    |
 | ----------------------- | ----- | ----------------------- |
-| `preact`                | -p    | --preact.               |
+| `config`                | -c    | --config                |
+| `preact`                | -p    | --preact                |
 | `description`           | -d    | --desc <value>          |
 | `author`                | -a    | --author <value>        |
 | `repo`                  | -r    | --repo <value>          |

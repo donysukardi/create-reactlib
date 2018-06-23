@@ -19,6 +19,10 @@ const tests = [
     semanticallyReleased: false,
     template: 'donysukardi/reactlib-template',
     install: false,
+    _config: {
+      cypress: false,
+      storybook: false,
+    },
   },
   {
     name: '@donysukardi/react-lib',
@@ -30,6 +34,10 @@ const tests = [
     semanticallyReleased: true,
     template: 'donysukardi/reactlib-template',
     install: false,
+    _config: {
+      cypress: false,
+      storybook: false,
+    },
   },
 ]
 

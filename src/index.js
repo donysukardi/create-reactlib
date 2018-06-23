@@ -1,4 +1,12 @@
-/* eslint-disable no-console */
+/*
+eslint-disable
+no-console,
+global-require,
+import/no-dynamic-require
+*/
+
+const fs = require(`fs-extra`)
+const path = require('path')
 const program = require('commander')
 const chalk = require('chalk')
 
@@ -18,6 +26,7 @@ const getInfoFromCmd = () => {
     .version(pkg.version)
     .usage('[options] <library-name>')
     .arguments('<name> [dest]')
+    .option('-c, --config <value>', 'Path to config file')
     .option('-d, --desc <value>', 'Library description')
     .option('-a, --author <value>', "Library author's git username")
     .option('-f, --fullname <value>', "Library author's fullname")
@@ -57,23 +66,35 @@ const getInfoFromCmd = () => {
     process.exit(1)
   }
 
-  const info = {
-    name,
-    dest,
-    preact: program.preact,
-    description: program.desc,
-    author: program.author,
-    repo: program.repo,
-    license: program.license,
-    // eslint-disable-next-line
-    manager: program.yarn ? 'yarn' : program.npm ? 'npm' : undefined,
-    semanticallyReleased: program.semanticallyReleased,
-    template: program.template,
-    scripts: program.scripts,
-    packages: program.packages,
-    fullname: program.fullname,
-    install: program.install,
+  let config = {}
+  const configPath = program.config
+    ? path.resolve(process.cwd(), program.config)
+    : null
+  if (fs.existsSync(configPath)) {
+    config = require(configPath)
   }
+
+  const info = Object.assign(
+    {
+      name,
+      dest,
+      preact: program.preact,
+      description: program.desc,
+      author: program.author,
+      repo: program.repo,
+      license: program.license,
+      // eslint-disable-next-line
+      manager: program.yarn ? 'yarn' : program.npm ? 'npm' : undefined,
+      semanticallyReleased: program.semanticallyReleased,
+      template: program.template,
+      scripts: program.scripts,
+      packages: program.packages,
+      fullname: program.fullname,
+      install: program.install,
+      _config: config,
+    },
+    config,
+  )
 
   return info
 }

@@ -200,14 +200,14 @@ const runLifecycle = async (info, lifecycle) => {
       ? path.resolve(process.cwd(), info.scripts)
       : path.resolve(info.dest, '.template/scripts.js')
 
-    let scripts = fs.existsSync(scriptsPath) ? require(scriptsPath) : {}
+    let scriptsExists = fs.existsSync(scriptsPath)
+    let scripts = scriptsExists ? require(scriptsPath) : {}
     scripts = typeof scripts === 'function' ? scripts(info) : scripts
 
     const preTitle = `pre${current.title}`
     const postTitle = `post${current.title}`
 
     const preScript = scripts[preTitle]
-    const postScript = scripts[postTitle]
 
     if (preScript) {
       const prePromiseRes = preScript(info, tools)
@@ -221,9 +221,27 @@ const runLifecycle = async (info, lifecycle) => {
       await prePromise
     }
 
+    if (!scriptsExists) {
+      scriptsExists = fs.existsSync(scriptsPath)
+      if (scriptsExists) {
+        scripts = require(scriptsPath)
+        scripts = typeof scripts === 'function' ? scripts(info) : scripts
+      }
+    }
+
     const promise = current.promise(info)
     ora.promise(promise, current.message)
     await promise
+
+    if (!scriptsExists) {
+      scriptsExists = fs.existsSync(scriptsPath)
+      if (scriptsExists) {
+        scripts = require(scriptsPath)
+        scripts = typeof scripts === 'function' ? scripts(info) : scripts
+      }
+    }
+
+    const postScript = scripts[postTitle]
 
     if (postScript) {
       const postPromiseRes = postScript(info, tools)
@@ -251,7 +269,19 @@ const createLibrary = async info => {
     {
       title: 'clonecopy',
       message: `${isClone ? 'Cloning' : 'Copying'} template to ${dest}`,
-      promise: () => (isClone ? clone(hostedInfo, dest) : copy(template, dest)),
+      promise: async () => {
+        if (isClone) await clone(hostedInfo, dest)
+        else await copy(template, dest)
+
+        const configPath = path.resolve(info.dest, '.template/config.js')
+
+        let tmplConfig = fs.existsSync(configPath) ? require(configPath) : {}
+        tmplConfig =
+          typeof tmplConfig === 'function' ? tmplConfig(info) : tmplConfig
+
+        Object.assign(info, tmplConfig, info._config || {})
+        delete info._config
+      },
     },
     {
       title: 'template',
