@@ -99,7 +99,7 @@ module
     console.log(`
 Success! Created ${info.name} at ${info.dest}
 We suggest that you begin by typing:
-  ${chalk.cyan('cd')} ${info.shortName}
+  ${chalk.cyan('cd')} ${info._dest ? info._dest : info.shortName}
   ${chalk.cyan(`${info.manager} start`)}
 `)
 

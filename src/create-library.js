@@ -113,6 +113,17 @@ const initGitRepo = async opts => {
 const cleanUp = async ({dest}) => fs.removeSync(path.resolve(dest, '.template'))
 
 const runLifecycle = async (info, lifecycle) => {
+  const tools = {
+    handlebars,
+    execa,
+    fs,
+    globby,
+    mkdirp,
+    ora,
+    pEachSeries,
+    hostedGitInfo,
+  }
+
   let i = 0
 
   while (i < lifecycle.length) {
@@ -130,7 +141,7 @@ const runLifecycle = async (info, lifecycle) => {
     const postScript = scripts[postTitle]
 
     if (preScript) {
-      const prePromiseRes = preScript(info)
+      const prePromiseRes = preScript(info, tools)
       const prePromise = prePromiseRes.promise
         ? prePromiseRes.promise()
         : prePromiseRes
@@ -146,7 +157,7 @@ const runLifecycle = async (info, lifecycle) => {
     await promise
 
     if (postScript) {
-      const postPromiseRes = postScript(info)
+      const postPromiseRes = postScript(info, tools)
       const postPromise = postPromiseRes.promise
         ? postPromiseRes.promise()
         : postPromiseRes

@@ -26,6 +26,7 @@ const getInfoWithDefaults = (info, defaults) => {
     semanticallyReleased:
       info.semanticallyReleased || defaults.semanticallyReleased,
     template: info.template || defaults.template,
+    _dest: info.dest,
     dest,
     shortName,
     cwd,
