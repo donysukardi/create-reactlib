@@ -43,7 +43,7 @@ module.exports = async defaults => {
       type: 'list',
       name: 'license',
       message: 'License',
-      choices: ['MIT', 'Apache-2.0', 'GNU-GPLv3', 'Other'],
+      choices: ['MIT', 'Apache-2.0', 'GPL-3.0-only', 'Other'],
       default: defaults.license,
     },
     {

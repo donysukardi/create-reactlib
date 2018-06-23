@@ -41,7 +41,6 @@ const getLibraryDefaults = async () => {
     manager: config.get('manager', 'npm'),
     license: config.get('license', 'MIT'),
     semanticallyReleased: config.get('semanticallyReleased', true),
-    preact: config.get('preact', false),
     description: '[[DESCRIPTION]]',
     template: 'donysukardi/reactlib-template',
     fullname: config.get('fullname', '[[FULLNAME]]'),

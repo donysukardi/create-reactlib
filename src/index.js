@@ -28,7 +28,6 @@ const getInfoFromCmd = () => {
     .option('-s, --semantically-released', 'Semantically release the library')
     .option('-t, --template <value>', 'Template to use for the library')
     .option('-p, --preact', 'Include preact build')
-    .option('--no-preact', 'Do not include preact build')
     .option(
       '-S, --scripts <value>',
       'Path to scripts to execute during lifecycle',
@@ -88,7 +87,6 @@ module.exports = async () => {
 
   const info = getInfoWithDefaults(_info, defaults)
 
-  config.set('preact', info.preact)
   config.set('author', info.author)
   config.set('fullname', info.fullname)
   config.set('manager', info.manager)
