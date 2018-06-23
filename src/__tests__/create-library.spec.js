@@ -3,6 +3,7 @@ const path = require('path')
 const rimraf = require('rimraf')
 
 const createLibrary = require('../create-library')
+const {getInfoWithDefaults} = require('../get-library-defaults')
 
 const tests = [
   {
@@ -13,7 +14,7 @@ const tests = [
     license: 'MIT',
     manager: 'yarn',
     semanticallyReleased: false,
-    template: 'donysukardi/reactlib-template'
+    template: 'donysukardi/reactlib-template',
   },
   {
     name: '@donysukardi/react-lib',
@@ -23,8 +24,8 @@ const tests = [
     license: 'GPL',
     manager: 'yarn',
     semanticallyReleased: true,
-    template: 'donysukardi/reactlib-template'
-  }
+    template: 'donysukardi/reactlib-template',
+  },
 ]
 
 const removeDir = dir =>
@@ -37,40 +38,50 @@ const removeDir = dir =>
 beforeAll(async () => {
   global.process.env.CYPRESS_INSTALL_BINARY = 0
   global.process.env.CI = true
-  return Promise.all(tests.map(x => {
-    const parts = x.name.split('/')
-    const dir = parts[parts.length - 1]
-    return removeDir(path.resolve(process.cwd(), dir))
-  }))
+  return Promise.all(
+    tests.map(x => {
+      const parts = x.name.split('/')
+      const dir = parts[parts.length - 1]
+      return removeDir(path.resolve(process.cwd(), dir))
+    }),
+  )
 })
 
-tests.forEach((info) => {
-  describe(`creating "${info.name}" using ${info.manager}`, () => {
-    it('creates successfully', async () => {
-      let ret
-      // ensure library is created successfully
-      const root = await createLibrary(info)
-      expect(root.indexOf(info.shortName) >= 0).toBeTruthy()
+tests.forEach(_info => {
+  describe(`creating "${_info.name}" using ${_info.manager}`, () => {
+    it(
+      'creates successfully',
+      async () => {
+        let ret
+        // ensure library is created successfully
+        const info = getInfoWithDefaults(_info, {})
 
-      // ensure yarn runs successfully in src/
-      ret = await execa.shell('yarn', { cwd: root })
-      expect(ret.code).toBe(0)
+        const root = await createLibrary(info)
+        expect(root.indexOf(info.shortName) >= 0).toBeTruthy()
 
-      // ensure jest tests pass
-      ret = await execa.shell('yarn test --watch=0', { cwd: root })
-      expect(ret.code).toBe(0)
-
-      if (info.manager === 'yarn') {
-        // ensure yarn runs successfully in stories/
-        ret = await execa.shell('yarn install', { cwd: path.join(root, 'stories') })
+        // ensure yarn runs successfully in src/
+        ret = await execa.shell('yarn', {cwd: root})
         expect(ret.code).toBe(0)
-      }
 
-      // ensure git is initialized properly
-      ret = await execa.shell('git status', { cwd: root })
-      expect(ret.code).toBe(0)
+        // ensure jest tests pass
+        ret = await execa.shell('yarn test --watch=0', {cwd: root})
+        expect(ret.code).toBe(0)
 
-      await removeDir(root)
-    }, 10000000)
+        if (info.manager === 'yarn') {
+          // ensure yarn runs successfully in stories/
+          ret = await execa.shell('yarn install', {
+            cwd: path.join(root, 'stories'),
+          })
+          expect(ret.code).toBe(0)
+        }
+
+        // ensure git is initialized properly
+        ret = await execa.shell('git status', {cwd: root})
+        expect(ret.code).toBe(0)
+
+        await removeDir(root)
+      },
+      10000000,
+    )
   })
 })

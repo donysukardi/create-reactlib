@@ -1,6 +1,9 @@
+/* eslint-disable global-require */
 /* eslint-disable no-console */
 /* eslint-disable no-param-reassign */
 /* eslint-disable import/newline-after-import */
+/* eslint-disable import/no-dynamic-require */
+/* eslint-disable no-await-in-loop */
 const handlebars = require('handlebars')
 const execa = require('execa')
 const fs = require(`fs-extra`)
@@ -11,16 +14,11 @@ const path = require('path')
 const pEachSeries = require('p-each-series')
 const hostedGitInfo = require(`hosted-git-info`)
 
-const { clone, copy } = require('./utils')
+const {clone, copy} = require('./utils')
 const pkg = require('../package')
 
-const copyTemplateFile = async (opts) => {
-  const {
-    file,
-    source,
-    dest,
-    info
-  } = opts
+const copyTemplateFile = async opts => {
+  const {file, source, dest, info} = opts
 
   const fileRelativePath = path.relative(source, file)
   const destFilePath = path.join(dest, fileRelativePath)
@@ -28,7 +26,7 @@ const copyTemplateFile = async (opts) => {
   const template = handlebars.compile(fs.readFileSync(file, 'utf8'))
   const content = template({
     ...info,
-    yarn: (info.manager === 'yarn')
+    yarn: info.manager === 'yarn',
   })
 
   await mkdirp(destFileDir)
@@ -41,93 +39,163 @@ const processTemplate = async (rootPath, info) => {
   const source = rootPath
   const files = await globby(source, {
     dot: true,
-    ignore: ['**/.DS_Store']
+    ignore: ['**/.DS_Store'],
   })
 
-  const promise = pEachSeries(files, async (file) =>
+  const promise = pEachSeries(files, async file =>
     copyTemplateFile({
       file,
       source,
       dest: rootPath,
-      info
-    })
+      info,
+    }),
   )
   await promise
 }
 
-const initPackageManager = async (opts) => {
-  const {
-    dest,
-    info
-  } = opts
+const getPackages = (pkgs = {}) =>
+  Object.entries(pkgs).map(
+    ([pkg, version]) => (version ? `${pkg}@${version}` : pkg),
+  )
 
-  const stories = path.join(dest, 'stories')
-  const instalCmd = info.manager === 'yarn' ? 'yarn add --dev' : 'npm install --save-dev'
+const getPackagesPath = destPath =>
+  [
+    path.resolve(destPath, '.template/package.js'),
+    path.resolve(destPath, '.template/package.json'),
+  ].find(fs.existsSync)
+
+const initPackageManager = async opts => {
+  const {dest, info} = opts
+
+  const instalCmd = info.manager === 'yarn' ? 'yarn add' : 'npm install'
+  const installDevCmd =
+    info.manager === 'yarn' ? 'yarn add --dev' : 'npm install --save-dev'
+
+  const packagesPath = info.packages
+    ? path.resolve(process.cwd(), info.packages)
+    : getPackagesPath(info.dest)
+
+  let packages =
+    packagesPath && fs.existsSync(packagesPath) ? require(packagesPath) : {}
+  packages = typeof packages === 'function' ? packages(info) : packages
+
+  const corePackages = getPackages(packages.dependencies)
+  const devPackages = getPackages(packages.devDependencies)
 
   const commands = [
+    corePackages.length && {
+      cmd: `${instalCmd} ${corePackages.join(' ')}`,
+      cwd: dest,
+    },
+    devPackages.length && {
+      cmd: `${installDevCmd} ${devPackages.join(' ')}`,
+      cwd: dest,
+    },
+    !corePackages.length &&
+      !devPackages.length && {
+        cmd: `${info.manager} install`,
+        cwd: dest,
+      },
+  ].filter(Boolean)
+
+  return pEachSeries(commands, async ({cmd, cwd}) => execa.shell(cmd, {cwd}))
+}
+
+const initGitRepo = async opts => {
+  const {dest} = opts
+
+  const cmd = `git init && git add . && git commit -m "init ${pkg.name}@${
+    pkg.version
+  }"`
+  return execa.shell(cmd, {cwd: dest})
+}
+
+const cleanUp = async ({dest}) => fs.removeSync(path.resolve(dest, '.template'))
+
+const runLifecycle = async (info, lifecycle) => {
+  let i = 0
+
+  while (i < lifecycle.length) {
+    const scriptsPath = info.scripts
+      ? path.resolve(process.cwd(), info.scripts)
+      : path.resolve(info.dest, '.template/scripts.js')
+
+    const scripts = fs.existsSync(scriptsPath) ? require(scriptsPath) : {}
+
+    const current = lifecycle[i]
+    const preTitle = `pre${current.title}`
+    const postTitle = `post${current.title}`
+
+    const preScript = scripts[preTitle]
+    const postScript = scripts[postTitle]
+
+    if (preScript) {
+      const prePromiseRes = preScript(info)
+      const prePromise = prePromiseRes.promise
+        ? prePromiseRes.promise()
+        : prePromiseRes
+      ora.promise(
+        prePromise,
+        prePromiseRes.title || `Running ${preTitle} script`,
+      )
+      await prePromise
+    }
+
+    const promise = current.promise(info)
+    ora.promise(promise, current.message)
+    await promise
+
+    if (postScript) {
+      const postPromiseRes = postScript(info)
+      const postPromise = postPromiseRes.promise
+        ? postPromiseRes.promise()
+        : postPromiseRes
+      ora.promise(
+        postPromise,
+        postPromiseRes.title || `Running ${postTitle} script`,
+      )
+      await postPromise
+    }
+
+    i++
+  }
+}
+
+const createLibrary = async info => {
+  const {dest, template} = info
+
+  const hostedInfo = hostedGitInfo.fromUrl(template)
+  const isClone = !!hostedInfo
+  info.isClone = isClone
+  info.hostedInfo = hostedInfo
+
+  await runLifecycle(info, [
     {
-      cmd: `${instalCmd} react react-dom prop-types @donysukardi/reactlib-scripts`,
-      cwd: dest
+      title: 'clonecopy',
+      message: `${isClone ? 'Cloning' : 'Copying'} template to ${dest}`,
+      promise: () => (isClone ? clone(hostedInfo, dest) : copy(template, dest)),
     },
     {
-      cmd: `${info.manager} install`,
-      cwd: stories
-    }
-  ]
-
-  return pEachSeries(commands, async ({ cmd, cwd }) =>
-    execa.shell(cmd, { cwd })
-  )
-}
-
-const initGitRepo = async (opts) => {
-  const {
-    dest
-  } = opts
-
-  const cmd = `git init && git add . && git commit -m "init ${pkg.name}@${pkg.version}"`
-  return execa.shell(cmd, { cwd: dest })
-}
-
-const createLibrary = async (info) => {
-  const {
-    name,
-    template
-  } = info
-
-  // handle scoped package names
-  const parts = name.split('/')
-  info.shortName = parts[parts.length - 1]
-
-  const dest = path.join(process.cwd(), info.shortName)
-  info.dest = dest
-
-  const hostedInfo = hostedGitInfo.fromUrl(template);
-
-  {
-    const isClone = !!hostedInfo;
-    const promise = isClone ? clone(hostedInfo, dest) : copy(template, dest)
-    ora.promise(promise, `${isClone ? 'Cloning' : 'Copying'} template to ${dest}`)
-    await promise
-  }
-
-  {
-    const promise = processTemplate(dest, info)
-    ora.promise(promise, `Processing template`)
-    await promise
-  }
-
-  {
-    const promise = initPackageManager({ dest, info })
-    ora.promise(promise, `Installing packages`)
-    await promise
-  }
-
-  {
-    const promise = initGitRepo({ dest })
-    ora.promise(promise, 'Initializing git repo')
-    await promise
-  }
+      title: 'template',
+      message: `Processing template`,
+      promise: () => processTemplate(dest, info),
+    },
+    {
+      title: 'package',
+      message: `Installing packages`,
+      promise: () => initPackageManager({dest, info}),
+    },
+    {
+      title: 'cleanup',
+      message: 'Cleaning up',
+      promise: () => cleanUp({dest}),
+    },
+    {
+      title: 'git',
+      message: 'Initializing git repo',
+      promise: () => initGitRepo({dest}),
+    },
+  ])
 
   return dest
 }
