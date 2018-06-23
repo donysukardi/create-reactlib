@@ -28,6 +28,7 @@ const getInfoFromCmd = () => {
     .option('-s, --semantically-released', 'Semantically release the library')
     .option('-t, --template <value>', 'Template to use for the library')
     .option('-p, --preact', 'Include preact build')
+    .option('-x, --no-install', 'Skip package installation')
     .option(
       '-S, --scripts <value>',
       'Path to scripts to execute during lifecycle',
@@ -71,6 +72,7 @@ const getInfoFromCmd = () => {
     scripts: program.scripts,
     packages: program.packages,
     fullname: program.fullname,
+    install: program.install,
   }
 
   return info

@@ -91,6 +91,9 @@ const initPackageManager = async opts => {
   const installDevCmd =
     info.manager === 'yarn' ? 'yarn add --dev' : 'npm install --save-dev'
 
+  const pkgJsonPath = path.resolve(dest, 'package.json')
+  const pkgJson = require(pkgJsonPath)
+
   const packagesPath = info.packages
     ? path.resolve(process.cwd(), info.packages)
     : getPackagesPath(info.dest)
@@ -99,26 +102,72 @@ const initPackageManager = async opts => {
     packagesPath && fs.existsSync(packagesPath) ? require(packagesPath) : {}
   packages = typeof packages === 'function' ? packages(info) : packages
 
-  const corePackages = getPackages(packages.dependencies)
-  const devPackages = getPackages(packages.devDependencies)
+  if (info.install) {
+    const corePackages = getPackages(packages.dependencies)
+    const devPackages = getPackages(packages.devDependencies)
 
-  const commands = [
-    corePackages.length && {
-      cmd: `${instalCmd} ${corePackages.join(' ')}`,
-      cwd: dest,
-    },
-    devPackages.length && {
-      cmd: `${installDevCmd} ${devPackages.join(' ')}`,
-      cwd: dest,
-    },
-    !corePackages.length &&
-      !devPackages.length && {
-        cmd: `${info.manager} install`,
+    const commands = [
+      corePackages.length && {
+        cmd: `${instalCmd} ${corePackages.join(' ')}`,
         cwd: dest,
       },
-  ].filter(Boolean)
+      devPackages.length && {
+        cmd: `${installDevCmd} ${devPackages.join(' ')}`,
+        cwd: dest,
+      },
+      !corePackages.length &&
+        !devPackages.length && {
+          cmd: `${info.manager} install`,
+          cwd: dest,
+        },
+    ].filter(Boolean)
 
-  return pEachSeries(commands, async ({cmd, cwd}) => execa.shell(cmd, {cwd}))
+    return pEachSeries(commands, async ({cmd, cwd}) => execa.shell(cmd, {cwd}))
+  } else {
+    const {dependencies = {}, devDependencies = {}} = packages
+    const depEntries = Object.entries(dependencies)
+    const devDepEntries = Object.entries(devDependencies)
+
+    const newDeps = Object.assign({}, dependencies)
+    const newDevDeps = Object.assign({}, devDependencies)
+
+    if (depEntries.length) {
+      await pEachSeries(depEntries, async ([pkg, version]) => {
+        if (!version) {
+          const {stdout: latest} = await execa.shell(
+            `npm info ${pkg} dist-tags.latest`,
+          )
+          newDeps[pkg] = `^${latest}`
+        }
+      })
+    }
+
+    if (devDepEntries.length) {
+      await pEachSeries(devDepEntries, async ([pkg, version]) => {
+        if (!version) {
+          const {stdout: latest} = await execa.shell(
+            `npm info ${pkg} dist-tags.latest`,
+          )
+          newDevDeps[pkg] = `^${latest}`
+        }
+      })
+    }
+
+    const newPkgJson = Object.assign({}, pkgJson, {
+      dependencies: Object.assign({}, pkgJson.dependencies || {}, newDeps),
+      devDependencies: Object.assign(
+        {},
+        pkgJson.devDependencies || {},
+        newDevDeps,
+      ),
+    })
+
+    return fs.writeFileSync(
+      pkgJsonPath,
+      JSON.stringify(newPkgJson, null, 2),
+      'utf-8',
+    )
+  }
 }
 
 const initGitRepo = async opts => {
@@ -151,7 +200,8 @@ const runLifecycle = async (info, lifecycle) => {
       ? path.resolve(process.cwd(), info.scripts)
       : path.resolve(info.dest, '.template/scripts.js')
 
-    const scripts = fs.existsSync(scriptsPath) ? require(scriptsPath) : {}
+    let scripts = fs.existsSync(scriptsPath) ? require(scriptsPath) : {}
+    scripts = typeof scripts === 'function' ? scripts(info) : scripts
 
     const preTitle = `pre${current.title}`
     const postTitle = `post${current.title}`
@@ -210,7 +260,7 @@ const createLibrary = async info => {
     },
     {
       title: 'package',
-      message: `Installing packages`,
+      message: info.install ? `Installing packages` : `Adding packages`,
       promise: () => initPackageManager({dest, info}),
     },
     {

@@ -5,6 +5,9 @@ const which = require('which')
 const path = require('path')
 const config = require('./config')
 
+const defaultBool = (bool, defaultVal) =>
+  typeof bool !== 'undefined' ? bool : defaultVal
+
 const getInfoWithDefaults = (info, defaults) => {
   // handle scoped package names
   const parts = info.name.split('/')
@@ -23,11 +26,14 @@ const getInfoWithDefaults = (info, defaults) => {
     license: info.license || defaults.license,
     // eslint-disable-next-line
     manager: info.manager || defaults.manager,
-    semanticallyReleased:
-      info.semanticallyReleased || defaults.semanticallyReleased,
+    semanticallyReleased: defaultBool(
+      info.semanticallyReleased,
+      defaults.semanticallyReleased,
+    ),
     template: info.template || defaults.template,
     year: new Date().getFullYear(),
     fullname: info.fullname || defaults.fullname,
+    install: defaultBool(info.install, defaults.install),
     _dest: info.dest,
     dest,
     shortName,
@@ -44,6 +50,7 @@ const getLibraryDefaults = async () => {
     description: '[[DESCRIPTION]]',
     template: 'donysukardi/reactlib-template',
     fullname: config.get('fullname', '[[FULLNAME]]'),
+    install: true,
   }
 
   try {

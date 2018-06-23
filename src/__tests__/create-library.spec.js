@@ -18,6 +18,7 @@ const tests = [
     manager: 'yarn',
     semanticallyReleased: false,
     template: 'donysukardi/reactlib-template',
+    install: false,
   },
   {
     name: '@donysukardi/react-lib',
@@ -28,6 +29,7 @@ const tests = [
     manager: 'yarn',
     semanticallyReleased: true,
     template: 'donysukardi/reactlib-template',
+    install: false,
   },
 ]
 

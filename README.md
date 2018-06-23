@@ -83,6 +83,7 @@ The only compulsory parameter is `name`, which is the name of your new package.
 | `template`              | string  | "donysukardi/reactlib-template"   | Git repository or local path of template to copy/clone and initialize            |
 | `scripts`               | string  | "<dest>/.template/scripts.js"     | Path to lifecycle scripts. Ref: [Lifecycle Scripts](#lifecycle-scripts)          |
 | `packages`              | string  | "<dest>/.template/package.js[on]" | Path to additional packages to install. Ref: [Custom Packages](#custom-packages) |
+| `install`               | boolean | true                              | Flag indicating whether package installation should be performed                 |
 
 CLI flags
 
@@ -98,6 +99,7 @@ CLI flags
 | `template`              | -t    | --template <value>      |
 | `scripts`               | -S    | --scripts <value>       |
 | `packages`              | -P    | --packages <value>      |
+| `install`               | -x    | --no-install            |
 
 ## Lifecycle Scripts
 

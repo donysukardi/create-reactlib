@@ -81,6 +81,12 @@ module.exports = async defaults => {
       name: 'packages',
       message: 'Additional Packages Path',
     },
+    {
+      type: 'confirm',
+      name: 'install',
+      message: 'Install Packages',
+      default: true,
+    },
   ])
 
   return info
