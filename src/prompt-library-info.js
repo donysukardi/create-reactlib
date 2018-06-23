@@ -16,10 +16,22 @@ module.exports = async defaults => {
       default: '',
     },
     {
+      type: 'confirm',
+      name: 'preact',
+      message: 'Include Preact Build',
+      default: defaults.preact,
+    },
+    {
       type: 'input',
       name: 'author',
       message: "Author's GitHub Handle",
       default: defaults.author,
+    },
+    {
+      type: 'input',
+      name: 'fullname',
+      message: "Author's Fullname",
+      default: defaults.fullname,
     },
     {
       type: 'input',
@@ -28,10 +40,17 @@ module.exports = async defaults => {
       default: info => `${info.author}/${info.name}`,
     },
     {
-      type: 'input',
+      type: 'list',
       name: 'license',
       message: 'License',
+      choices: ['MIT', 'Apache-2.0', 'GNU-GPLv3', 'Other'],
       default: defaults.license,
+    },
+    {
+      type: 'input',
+      name: 'license',
+      message: 'Other License',
+      when: response => response.license === 'Other',
     },
     {
       type: 'list',

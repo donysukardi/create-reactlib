@@ -73,6 +73,7 @@ The only compulsory parameter is `name`, which is the name of your new package.
 
 | parameter               | type    | default                           | description                                                                      |
 | ----------------------- | ------- | --------------------------------- | -------------------------------------------------------------------------------- |
+| `preact`                | boolean | false                             | Flag to include preact build                                                     |
 | `description`           | string  | ""                                | Description of the new package                                                   |
 | `author`                | string  | "<github-username>"               | Author for package.json and README.md                                            |
 | `repo`                  | string  | "<author>/<name>"                 | Repository for package.json                                                      |
@@ -87,6 +88,7 @@ CLI flags
 
 | parameter               | short | long                    |
 | ----------------------- | ----- | ----------------------- |
+| `preact`                | -p    | --preact.               |
 | `description`           | -d    | --desc <value>          |
 | `author`                | -a    | --author <value>        |
 | `repo`                  | -r    | --repo <value>          |
@@ -95,7 +97,7 @@ CLI flags
 | `semanticallyReleased`. | -s    | --semantically-released |
 | `template`              | -t    | --template <value>      |
 | `scripts`               | -S    | --scripts <value>       |
-| `packages`              | -p    | --packages <value>      |
+| `packages`              | -P    | --packages <value>      |
 
 ## Lifecycle Scripts
 

@@ -26,6 +26,8 @@ const getInfoWithDefaults = (info, defaults) => {
     semanticallyReleased:
       info.semanticallyReleased || defaults.semanticallyReleased,
     template: info.template || defaults.template,
+    year: new Date().getFullYear(),
+    fullname: info.fullname || defaults.fullname,
     _dest: info.dest,
     dest,
     shortName,
@@ -39,12 +41,14 @@ const getLibraryDefaults = async () => {
     manager: config.get('manager', 'npm'),
     license: config.get('license', 'MIT'),
     semanticallyReleased: config.get('semanticallyReleased', true),
-    description: '',
+    preact: config.get('preact', false),
+    description: '[[DESCRIPTION]]',
     template: 'donysukardi/reactlib-template',
+    fullname: config.get('fullname', '[[FULLNAME]]'),
   }
 
   try {
-    if (!config.get('author')) {
+    if (!config.get('author') || !config.get('fullname')) {
       const gitConfigPath = getGitConfigPath('global')
 
       if (gitConfigPath) {
@@ -55,10 +59,18 @@ const getLibraryDefaults = async () => {
         } else if (gitConfig.user && gitConfig.user.email) {
           defaults.author = await githubUsername(gitConfig.user.email)
         }
+
+        if (gitConfig.user) {
+          defaults.fullname = gitConfig.user.name
+        }
       }
 
       if (defaults.author) {
         config.set('author', defaults.author)
+      }
+
+      if (defaults.fullname) {
+        config.set('fullname', defaults.fullname)
       }
     }
 

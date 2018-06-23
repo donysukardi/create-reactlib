@@ -30,7 +30,12 @@ const copyTemplateFile = async opts => {
   })
 
   await mkdirp(destFileDir)
-  fs.writeFileSync(destFilePath, content, 'utf8')
+  if (destFilePath.endsWith('.tmpl')) {
+    fs.writeFileSync(destFilePath.replace(/\.tmpl$/, ''), content, 'utf8')
+    fs.removeSync(destFilePath)
+  } else {
+    fs.writeFileSync(destFilePath, content, 'utf8')
+  }
 
   return fileRelativePath
 }
@@ -50,6 +55,21 @@ const processTemplate = async (rootPath, info) => {
       info,
     }),
   )
+
+  const licenseFile = path.resolve(
+    __dirname,
+    'licenses',
+    `${info.license}.license`,
+  )
+  const licenseOutput = path.resolve(rootPath, 'LICENSE')
+  if (fs.existsSync(licenseFile)) {
+    const template = handlebars.compile(fs.readFileSync(licenseFile, 'utf8'))
+    const content = template(info)
+    fs.writeFileSync(licenseOutput, content, 'utf8')
+  } else {
+    fs.writeFileSync(licenseOutput, '', 'utf8')
+  }
+
   await promise
 }
 
@@ -110,7 +130,9 @@ const initGitRepo = async opts => {
   return execa.shell(cmd, {cwd: dest})
 }
 
-const cleanUp = async ({dest}) => fs.removeSync(path.resolve(dest, '.template'))
+const cleanUp = async ({dest}) => {
+  fs.removeSync(path.resolve(dest, '.template'))
+}
 
 const runLifecycle = async (info, lifecycle) => {
   const tools = {
@@ -124,16 +146,13 @@ const runLifecycle = async (info, lifecycle) => {
     hostedGitInfo,
   }
 
-  let i = 0
-
-  while (i < lifecycle.length) {
+  return pEachSeries(lifecycle, async current => {
     const scriptsPath = info.scripts
       ? path.resolve(process.cwd(), info.scripts)
       : path.resolve(info.dest, '.template/scripts.js')
 
     const scripts = fs.existsSync(scriptsPath) ? require(scriptsPath) : {}
 
-    const current = lifecycle[i]
     const preTitle = `pre${current.title}`
     const postTitle = `post${current.title}`
 
@@ -167,9 +186,7 @@ const runLifecycle = async (info, lifecycle) => {
       )
       await postPromise
     }
-
-    i++
-  }
+  })
 }
 
 const createLibrary = async info => {

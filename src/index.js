@@ -19,18 +19,21 @@ const getInfoFromCmd = () => {
     .usage('[options] <library-name>')
     .arguments('<name> [dest]')
     .option('-d, --desc <value>', 'Library description')
-    .option('-a, --author <value>', 'Library author')
+    .option('-a, --author <value>', "Library author's git username")
+    .option('-f, --fullname <value>', "Library author's fullname")
     .option('-r, --repo <value>', 'Github repository')
     .option('-l, --license <value>', 'License')
     .option('-n, --npm', 'Use npm as package manager')
     .option('-y, --yarn', 'Use yarn as package manager')
     .option('-s, --semantically-released', 'Semantically release the library')
     .option('-t, --template <value>', 'Template to use for the library')
+    .option('-p, --preact', 'Include preact build')
+    .option('--no-preact', 'Do not include preact build')
     .option(
       '-S, --scripts <value>',
       'Path to scripts to execute during lifecycle',
     )
-    .option('-p, --packages <value>', 'Path to additional packages to install')
+    .option('-P, --packages <value>', 'Path to additional packages to install')
     .action((packageName, destination) => {
       name = packageName
       dest = destination
@@ -57,6 +60,7 @@ const getInfoFromCmd = () => {
   const info = {
     name,
     dest,
+    preact: program.preact,
     description: program.desc,
     author: program.author,
     repo: program.repo,
@@ -67,6 +71,7 @@ const getInfoFromCmd = () => {
     template: program.template,
     scripts: program.scripts,
     packages: program.packages,
+    fullname: program.fullname,
   }
 
   return info
@@ -83,7 +88,9 @@ module.exports = async () => {
 
   const info = getInfoWithDefaults(_info, defaults)
 
+  config.set('preact', info.preact)
   config.set('author', info.author)
+  config.set('fullname', info.fullname)
   config.set('manager', info.manager)
   config.set('license', info.license)
   config.set('semanticallyReleased', info.semanticallyReleased)

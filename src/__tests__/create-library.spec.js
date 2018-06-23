@@ -3,7 +3,10 @@ const path = require('path')
 const rimraf = require('rimraf')
 
 const createLibrary = require('../create-library')
-const {getInfoWithDefaults} = require('../get-library-defaults')
+const {
+  getInfoWithDefaults,
+  getLibraryDefaults,
+} = require('../get-library-defaults')
 
 const tests = [
   {
@@ -54,7 +57,7 @@ tests.forEach(_info => {
       async () => {
         let ret
         // ensure library is created successfully
-        const info = getInfoWithDefaults(_info, {})
+        const info = getInfoWithDefaults(_info, getLibraryDefaults())
 
         const root = await createLibrary(info)
         expect(root.indexOf(info.shortName) >= 0).toBeTruthy()
@@ -66,14 +69,6 @@ tests.forEach(_info => {
         // ensure jest tests pass
         ret = await execa.shell('yarn test --watch=0', {cwd: root})
         expect(ret.code).toBe(0)
-
-        if (info.manager === 'yarn') {
-          // ensure yarn runs successfully in stories/
-          ret = await execa.shell('yarn install', {
-            cwd: path.join(root, 'stories'),
-          })
-          expect(ret.code).toBe(0)
-        }
 
         // ensure git is initialized properly
         ret = await execa.shell('git status', {cwd: root})
