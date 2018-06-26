@@ -3,38 +3,38 @@ const githubUsername = require('github-username')
 const parseGitConfig = require('parse-git-config')
 const which = require('which')
 const path = require('path')
-const config = require('./config')
+const defaultConfig = require('./config')
 
 const defaultBool = (bool, defaultVal) =>
   typeof bool !== 'undefined' ? bool : defaultVal
 
-const getInfoWithDefaults = (info, defaults) => {
+const getConfigWithDefaults = (config, defaults) => {
   // handle scoped package names
-  const parts = info.name.split('/')
+  const parts = config.name.split('/')
   const shortName = parts[parts.length - 1]
   const cwd = process.cwd()
 
-  const dest = info.dest
-    ? path.resolve(cwd, info.dest)
+  const dest = config.dest
+    ? path.resolve(cwd, config.dest)
     : path.join(cwd, shortName)
 
-  return Object.assign({}, info, {
-    name: info.name,
-    description: info.desc || defaults.description,
-    author: info.author || defaults.author,
-    repo: info.repo || `${defaults.author}/${info.name}`,
-    license: info.license || defaults.license,
+  return Object.assign({}, config, {
+    name: config.name,
+    description: config.desc || defaults.description,
+    author: config.author || defaults.author,
+    repo: config.repo || `${defaults.author}/${config.name}`,
+    license: config.license || defaults.license,
     // eslint-disable-next-line
-    manager: info.manager || defaults.manager,
+    manager: config.manager || defaults.manager,
     semanticallyReleased: defaultBool(
-      info.semanticallyReleased,
+      config.semanticallyReleased,
       defaults.semanticallyReleased,
     ),
-    template: info.template || defaults.template,
+    template: config.template || defaults.template,
     year: new Date().getFullYear(),
-    fullname: info.fullname || defaults.fullname,
-    install: defaultBool(info.install, defaults.install),
-    _dest: info.dest,
+    fullname: config.fullname || defaults.fullname,
+    install: defaultBool(config.install, defaults.install),
+    _dest: config.dest,
     dest,
     shortName,
     cwd,
@@ -43,18 +43,18 @@ const getInfoWithDefaults = (info, defaults) => {
 
 const getLibraryDefaults = async () => {
   const defaults = {
-    author: config.get('author'),
-    manager: config.get('manager', 'npm'),
-    license: config.get('license', 'MIT'),
-    semanticallyReleased: config.get('semanticallyReleased', true),
+    author: defaultConfig.get('author'),
+    manager: defaultConfig.get('manager', 'npm'),
+    license: defaultConfig.get('license', 'MIT'),
+    semanticallyReleased: defaultConfig.get('semanticallyReleased', true),
     description: '[[DESCRIPTION]]',
     template: 'donysukardi/reactlib-template',
-    fullname: config.get('fullname', '[[FULLNAME]]'),
+    fullname: defaultConfig.get('fullname', '[[FULLNAME]]'),
     install: true,
   }
 
   try {
-    if (!config.get('author') || !config.get('fullname')) {
+    if (!defaultConfig.get('author') || !defaultConfig.get('fullname')) {
       const gitConfigPath = getGitConfigPath('global')
 
       if (gitConfigPath) {
@@ -72,20 +72,20 @@ const getLibraryDefaults = async () => {
       }
 
       if (defaults.author) {
-        config.set('author', defaults.author)
+        defaultConfig.set('author', defaults.author)
       }
 
       if (defaults.fullname) {
-        config.set('fullname', defaults.fullname)
+        defaultConfig.set('fullname', defaults.fullname)
       }
     }
 
-    if (!config.get('manager')) {
+    if (!defaultConfig.get('manager')) {
       if (which.sync('yarn', {nothrow: true})) {
         defaults.manager = 'yarn'
       }
 
-      config.set('manager', defaults.manager)
+      defaultConfig.set('manager', defaults.manager)
     }
     /* eslint-disable-next-line */
   } catch (err) {}
@@ -95,5 +95,5 @@ const getLibraryDefaults = async () => {
 
 module.exports = {
   getLibraryDefaults,
-  getInfoWithDefaults,
+  getConfigWithDefaults,
 }

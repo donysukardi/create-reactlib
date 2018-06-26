@@ -20,6 +20,10 @@ CLI to create React libraries with custom template support
 - [Features](#features)
 - [Usage](#usage)
 - [Configuration](#configuration)
+  - [Standard config](#standard-config)
+  - [CLI flags](#cli-flags)
+  - [The Config Object](#the-config-object)
+- [Template](#template)
 - [Lifecycle Scripts](#lifecycle-scripts)
   - [API](#api)
 - [Custom Packages](#custom-packages)
@@ -71,22 +75,24 @@ npx @donysukardi/create-reactlib
 
 The only compulsory parameter is `name`, which is the name of your new package.
 
-| parameter               | type    | default                           | description                                                                      |
-| ----------------------- | ------- | --------------------------------- | -------------------------------------------------------------------------------- |
-| `config`                | string  | ""                                | Path to configuration to load                                                    |
-| `preact`                | boolean | false                             | Flag to include preact build                                                     |
-| `description`           | string  | ""                                | Description of the new package                                                   |
-| `author`                | string  | "<github-username>"               | Author for package.json and README.md                                            |
-| `repo`                  | string  | "<author>/<name>"                 | Repository for package.json                                                      |
-| `license`               | string  | "MIT"                             | License for package.json and README.md                                           |
-| `manager`               | string  | "npm"                             | Package manager to use for installation                                          |
-| `semanticallyReleased`. | boolean | true                              | Flag to indicate whether package version should be 0.0.0-semantically-released   |
-| `template`              | string  | "donysukardi/reactlib-template"   | Git repository or local path of template to copy/clone and initialize            |
-| `scripts`               | string  | "<dest>/.template/scripts.js"     | Path to lifecycle scripts. Ref: [Lifecycle Scripts](#lifecycle-scripts)          |
-| `packages`              | string  | "<dest>/.template/package.js[on]" | Path to additional packages to install. Ref: [Custom Packages](#custom-packages) |
-| `install`               | boolean | true                              | Flag indicating whether package installation should be performed                 |
+### Standard config
 
-CLI flags
+| parameter               | type    | default                             | description                                                                      |
+| ----------------------- | ------- | ----------------------------------- | -------------------------------------------------------------------------------- |
+| `config`                | string  | ""                                  | Path to configuration to load                                                    |
+| `preact`                | boolean | false                               | Flag to include preact build                                                     |
+| `description`           | string  | ""                                  | Description of the new package                                                   |
+| `author`                | string  | "{{github-username}}"               | Author for package.json and README.md                                            |
+| `repo`                  | string  | "{{author}}/{{name}}"               | Repository for package.json                                                      |
+| `license`               | string  | "MIT"                               | License for package.json and README.md                                           |
+| `manager`               | string  | "npm"                               | Package manager to use for installation                                          |
+| `semanticallyReleased`. | boolean | true                                | Flag to indicate whether package version should be 0.0.0-semantically-released   |
+| `template`              | string  | "donysukardi/reactlib-template"     | Git repository or local path of template to copy/clone and initialize            |
+| `scripts`               | string  | "{{dest}}/.template/scripts.js"     | Path to lifecycle scripts. Ref: [Lifecycle Scripts](#lifecycle-scripts)          |
+| `packages`              | string  | "{{dest}}/.template/package.js[on]" | Path to additional packages to install. Ref: [Custom Packages](#custom-packages) |
+| `install`               | boolean | true                                | Flag indicating whether package installation should be performed                 |
+
+### CLI flags
 
 | parameter               | short | long                    |
 | ----------------------- | ----- | ----------------------- |
@@ -103,9 +109,29 @@ CLI flags
 | `packages`              | -P    | --packages <value>      |
 | `install`               | -x    | --no-install            |
 
+### The Config Object
+
+All the files will be compiled with the parameters merged from the following config,
+
+1.  Config exported from `.template/config.js` (if any) - [Template](#template)
+1.  Config exported from file in `config` path from CLI (if any) [Configuration](#configuration)
+1.  Individual config from CLI [Configuration](#configuration)
+
+## Template
+
+`create-reactlib` uses [handlebars](https://handlebarsjs.com/) under the hood.
+
+The following files in the template have special treatments,
+
+- Files with `.tmpl` will have the `.tmpl` stripped off during compilation.
+- Files inside `.template` directory in the root, which will be removed during `cleanup` lifecycle
+  - `.template/scripts.json` - Default [Lifecycle Scripts](#lifecycle-scripts)
+  - `.template/package.js[on]` - Default [Custom Packages](#custom-packages)
+  - `.template/config.js` - Default config as described below
+
 ## Lifecycle Scripts
 
-This library provides `pre` and `post` hooks for the following lifecycles,
+This library provides `post` hooks for the following lifecycles,
 
 - `clonecopy`: Copying/Cloning template
 - `template`: Processing template
@@ -113,17 +139,15 @@ This library provides `pre` and `post` hooks for the following lifecycles,
 - `cleanup`: Cleaning up template artefacts
 - `git`: Initializing git repository
 
-You will need to export a JSON with the lifecycle names as the keys, e.g. `pretemplate`, `posttemplate`, in the script file.
+You will need to export an object with the lifecycle names as the keys, e.g. `postclonecopy`, `posttemplate`, in the script file.
 
 By default, the library will look for the file in `.template/scripts.js` inside the destination path.
 
-Caveat: When using default scripts, `preclonecopy` will not be executed as the file does not exist in the destination path yet.
-
 ### API
 
-Each lifecycle script receives `info` and `tools` as arguments
+Each lifecycle script receives (`config`)[#the-config-object] and (`tools`)[#tools] as arguments
 
-**Tools**
+#### Tools
 
 Object containing library helpers,
 
@@ -150,25 +174,16 @@ Lifecycle script should return either:
 ```javascript
 // my-reactlib-template/.template/scripts.js
 
-const preTemplate = (info, tools) => {
-  // do something
-  return {
-    title: 'Doing something pre template',
-    promise: () => {
-      // do something
-      return new Promise(resolve => setTimeout(() => resolve(), 2000))
-    },
-  }
-}
+const preTemplate = async (config, tools) => {
+  const promise = new Promise(resolve => setTimeout(() => resolve(), 2000))
+  ora.promise(promise, 'Doing something')
+  await promise
 
-const postTemplate = (info, tools) => {
-  // do something
-  return new Promise(resolve => setTimeout(() => resolve(), 2000))
+  // Do something else here perhaps
 }
 
 module.exports = {
-  pretemplate: preTemplate,
-  posttemplate: postTemplate,
+  pretemplate,
 }
 ```
 
@@ -180,7 +195,7 @@ You will need to export a JSON with `dependencies` and/or `devDependencies` keys
 
 By default, the library will look for the file in `.template/package.js` or `.template/package.json` inside the destination path.
 
-If you use a js file, you're expected to export a function that will receive info as argument.
+If you use a js file, you're expected to export a function that will receive `config` as argument.
 
 ### Format
 

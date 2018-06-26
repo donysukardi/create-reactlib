@@ -4,7 +4,7 @@ const rimraf = require('rimraf')
 
 const createLibrary = require('../create-library')
 const {
-  getInfoWithDefaults,
+  getConfigWithDefaults,
   getLibraryDefaults,
 } = require('../get-library-defaults')
 
@@ -60,14 +60,14 @@ beforeAll(async () => {
   )
 })
 
-tests.forEach(_info => {
-  describe(`creating "${_info.name}" using ${_info.manager}`, () => {
+tests.forEach(_config => {
+  describe(`creating "${_config.name}" using ${_config.manager}`, () => {
     it(
       'creates successfully',
       async () => {
         let ret
         // ensure library is created successfully
-        const info = getInfoWithDefaults(_info, getLibraryDefaults())
+        const info = getConfigWithDefaults(_config, getLibraryDefaults())
 
         const root = await createLibrary(info)
         expect(root.indexOf(info.shortName) >= 0).toBeTruthy()

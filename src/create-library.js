@@ -18,15 +18,15 @@ const {clone, copy} = require('./utils')
 const pkg = require('../package')
 
 const copyTemplateFile = async opts => {
-  const {file, source, dest, info} = opts
+  const {file, source, dest, config} = opts
 
   const fileRelativePath = path.relative(source, file)
   const destFilePath = path.join(dest, fileRelativePath)
   const destFileDir = path.parse(destFilePath).dir
   const template = handlebars.compile(fs.readFileSync(file, 'utf8'))
   const content = template({
-    ...info,
-    yarn: info.manager === 'yarn',
+    ...config,
+    yarn: config.manager === 'yarn',
   })
 
   await mkdirp(destFileDir)
@@ -40,37 +40,45 @@ const copyTemplateFile = async opts => {
   return fileRelativePath
 }
 
-const processTemplate = async (rootPath, info) => {
-  const source = rootPath
+const processTemplate = async (source, config) => {
   const files = await globby(source, {
     dot: true,
-    ignore: ['**/.DS_Store'],
+    ignore: ['**/.DS_Store', '**/.template'],
   })
 
   const promise = pEachSeries(files, async file =>
     copyTemplateFile({
       file,
       source,
-      dest: rootPath,
-      info,
+      dest: source,
+      config,
     }),
   )
 
-  const licenseFile = path.resolve(
-    __dirname,
-    'licenses',
-    `${info.license}.license`,
-  )
-  const licenseOutput = path.resolve(rootPath, 'LICENSE')
-  if (fs.existsSync(licenseFile)) {
-    const template = handlebars.compile(fs.readFileSync(licenseFile, 'utf8'))
-    const content = template(info)
-    fs.writeFileSync(licenseOutput, content, 'utf8')
-  } else {
-    fs.writeFileSync(licenseOutput, '', 'utf8')
+  if (config.license !== 'UNLICENSED') {
+    const licenseFile = path.resolve(
+      __dirname,
+      'licenses',
+      `${config.license}.license`,
+    )
+
+    const licenseOutput = path.resolve(source, 'LICENSE')
+    if (fs.existsSync(licenseFile)) {
+      const template = handlebars.compile(fs.readFileSync(licenseFile, 'utf8'))
+      const content = template(config)
+      fs.writeFileSync(licenseOutput, content, 'utf8')
+    } else {
+      fs.writeFileSync(licenseOutput, '', 'utf8')
+    }
   }
 
   await promise
+}
+
+const requireFile = (filePath, ...args) => {
+  const exists = fs.existsSync(filePath)
+  const scripts = exists ? require(filePath) : {}
+  return typeof scripts === 'function' ? scripts(...args) : scripts
 }
 
 const getPackages = (pkgs = {}) =>
@@ -85,24 +93,22 @@ const getPackagesPath = destPath =>
   ].find(fs.existsSync)
 
 const initPackageManager = async opts => {
-  const {dest, info} = opts
+  const {dest, config} = opts
 
-  const instalCmd = info.manager === 'yarn' ? 'yarn add' : 'npm install'
+  const instalCmd = config.manager === 'yarn' ? 'yarn add' : 'npm install'
   const installDevCmd =
-    info.manager === 'yarn' ? 'yarn add --dev' : 'npm install --save-dev'
+    config.manager === 'yarn' ? 'yarn add --dev' : 'npm install --save-dev'
 
   const pkgJsonPath = path.resolve(dest, 'package.json')
   const pkgJson = require(pkgJsonPath)
 
-  const packagesPath = info.packages
-    ? path.resolve(process.cwd(), info.packages)
-    : getPackagesPath(info.dest)
+  const packagesPath = config.packages
+    ? path.resolve(process.cwd(), config.packages)
+    : getPackagesPath(config.dest)
 
-  let packages =
-    packagesPath && fs.existsSync(packagesPath) ? require(packagesPath) : {}
-  packages = typeof packages === 'function' ? packages(info) : packages
+  const packages = requireFile(packagesPath, config)
 
-  if (info.install) {
+  if (config.install) {
     const corePackages = getPackages(packages.dependencies)
     const devPackages = getPackages(packages.devDependencies)
 
@@ -117,7 +123,7 @@ const initPackageManager = async opts => {
       },
       !corePackages.length &&
         !devPackages.length && {
-          cmd: `${info.manager} install`,
+          cmd: `${config.manager} install`,
           cwd: dest,
         },
     ].filter(Boolean)
@@ -183,7 +189,7 @@ const cleanUp = async ({dest}) => {
   fs.removeSync(path.resolve(dest, '.template'))
 }
 
-const runLifecycle = async (info, lifecycle) => {
+const runLifecycle = async (config, lifecycle) => {
   const tools = {
     handlebars,
     execa,
@@ -195,77 +201,39 @@ const runLifecycle = async (info, lifecycle) => {
     hostedGitInfo,
   }
 
+  let scripts = null
+
   return pEachSeries(lifecycle, async current => {
-    const scriptsPath = info.scripts
-      ? path.resolve(process.cwd(), info.scripts)
-      : path.resolve(info.dest, '.template/scripts.js')
-
-    let scriptsExists = fs.existsSync(scriptsPath)
-    let scripts = scriptsExists ? require(scriptsPath) : {}
-    scripts = typeof scripts === 'function' ? scripts(info) : scripts
-
-    const preTitle = `pre${current.title}`
-    const postTitle = `post${current.title}`
-
-    const preScript = scripts[preTitle]
-
-    if (preScript) {
-      const prePromiseRes = preScript(info, tools)
-      const prePromise = prePromiseRes.promise
-        ? prePromiseRes.promise()
-        : prePromiseRes
-      ora.promise(
-        prePromise,
-        prePromiseRes.title || `Running ${preTitle} script`,
-      )
-      await prePromise
-    }
-
-    if (!scriptsExists) {
-      scriptsExists = fs.existsSync(scriptsPath)
-      if (scriptsExists) {
-        scripts = require(scriptsPath)
-        scripts = typeof scripts === 'function' ? scripts(info) : scripts
-      }
-    }
-
-    const promise = current.promise(info)
+    const promise = current.promise(config)
     ora.promise(promise, current.message)
     await promise
 
-    if (!scriptsExists) {
-      scriptsExists = fs.existsSync(scriptsPath)
-      if (scriptsExists) {
-        scripts = require(scriptsPath)
-        scripts = typeof scripts === 'function' ? scripts(info) : scripts
-      }
+    if (!scripts) {
+      scripts = Object.assign(
+        {},
+        requireFile(path.resolve(config.dest, '.template/scripts.js'), config),
+        config.scripts
+          ? requireFile(path.resolve(process.cwd(), config.scripts), config)
+          : {},
+      )
     }
 
-    const postScript = scripts[postTitle]
-
+    const postScript = scripts[`post${current.title}`]
     if (postScript) {
-      const postPromiseRes = postScript(info, tools)
-      const postPromise = postPromiseRes.promise
-        ? postPromiseRes.promise()
-        : postPromiseRes
-      ora.promise(
-        postPromise,
-        postPromiseRes.title || `Running ${postTitle} script`,
-      )
-      await postPromise
+      await postScript(config, tools)
     }
   })
 }
 
-const createLibrary = async info => {
-  const {dest, template} = info
+const createLibrary = async config => {
+  const {dest, template} = config
 
   const hostedInfo = hostedGitInfo.fromUrl(template)
   const isClone = !!hostedInfo
-  info.isClone = isClone
-  info.hostedInfo = hostedInfo
+  config.isClone = isClone
+  config.hostedInfo = hostedInfo
 
-  await runLifecycle(info, [
+  await runLifecycle(config, [
     {
       title: 'clonecopy',
       message: `${isClone ? 'Cloning' : 'Copying'} template to ${dest}`,
@@ -273,25 +241,24 @@ const createLibrary = async info => {
         if (isClone) await clone(hostedInfo, dest)
         else await copy(template, dest)
 
-        const configPath = path.resolve(info.dest, '.template/config.js')
+        const tmplConfig = requireFile(
+          path.resolve(config.dest, '.template/config.js'),
+          config,
+        )
 
-        let tmplConfig = fs.existsSync(configPath) ? require(configPath) : {}
-        tmplConfig =
-          typeof tmplConfig === 'function' ? tmplConfig(info) : tmplConfig
-
-        Object.assign(info, tmplConfig, info._config || {})
-        delete info._config
+        const configCopy = Object.assign({}, config)
+        Object.assign(config, tmplConfig, configCopy) // existing config should override template
       },
     },
     {
       title: 'template',
       message: `Processing template`,
-      promise: () => processTemplate(dest, info),
+      promise: () => processTemplate(dest, config),
     },
     {
       title: 'package',
-      message: info.install ? `Installing packages` : `Adding packages`,
-      promise: () => initPackageManager({dest, info}),
+      message: config.install ? `Installing packages` : `Adding packages`,
+      promise: () => initPackageManager({dest, config}),
     },
     {
       title: 'cleanup',

@@ -2,7 +2,7 @@ const inquirer = require('inquirer')
 const validateNpmName = require('validate-npm-package-name')
 
 module.exports = async defaults => {
-  const info = await inquirer.prompt([
+  const config = await inquirer.prompt([
     {
       type: 'input',
       name: 'name',
@@ -37,13 +37,13 @@ module.exports = async defaults => {
       type: 'input',
       name: 'repo',
       message: 'GitHub Repo Path',
-      default: info => `${info.author}/${info.name}`,
+      default: config => `${config.author}/${config.name}`,
     },
     {
       type: 'list',
       name: 'license',
       message: 'License',
-      choices: ['MIT', 'Apache-2.0', 'GPL-3.0-only', 'Other'],
+      choices: ['MIT', 'Apache-2.0', 'GPL-3.0-only', 'UNLICENSED', 'Other'],
       default: defaults.license,
     },
     {
@@ -89,5 +89,5 @@ module.exports = async defaults => {
     },
   ])
 
-  return info
+  return config
 }

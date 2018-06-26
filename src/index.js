@@ -12,14 +12,14 @@ const chalk = require('chalk')
 
 const {
   getLibraryDefaults,
-  getInfoWithDefaults,
+  getConfigWithDefaults,
 } = require('./get-library-defaults')
 const createLibrary = require('./create-library')
-const promptLibraryInfo = require('./prompt-library-info')
-const config = require('./config')
+const promptLibraryConfig = require('./prompt-library-config')
+const defaultConfig = require('./config')
 const pkg = require('../package.json')
 
-const getInfoFromCmd = () => {
+const getConfigFromCmd = () => {
   let name
   let dest
   program
@@ -66,69 +66,65 @@ const getInfoFromCmd = () => {
     process.exit(1)
   }
 
-  let config = {}
+  let cliConfig = {}
   const configPath = program.config
     ? path.resolve(process.cwd(), program.config)
     : null
   if (fs.existsSync(configPath)) {
-    config = require(configPath)
+    cliConfig = require(configPath)
   }
 
-  const info = Object.assign(
-    {
-      name,
-      dest,
-      preact: program.preact,
-      description: program.desc,
-      author: program.author,
-      repo: program.repo,
-      license: program.license,
-      // eslint-disable-next-line
-      manager: program.yarn ? 'yarn' : program.npm ? 'npm' : undefined,
-      semanticallyReleased: program.semanticallyReleased,
-      template: program.template,
-      scripts: program.scripts,
-      packages: program.packages,
-      fullname: program.fullname,
-      install: program.install,
-      _config: config,
-    },
-    config,
-  )
+  const config = Object.assign({}, cliConfig, {
+    name,
+    dest,
+    preact: program.preact,
+    description: program.desc,
+    author: program.author,
+    repo: program.repo,
+    license: program.license,
+    // eslint-disable-next-line
+    manager: program.yarn ? 'yarn' : program.npm ? 'npm' : undefined,
+    semanticallyReleased: program.semanticallyReleased,
+    template: program.template,
+    scripts: program.scripts,
+    packages: program.packages,
+    fullname: program.fullname,
+    install: program.install,
+  })
 
-  return info
+  return config
 }
 
 module.exports = async () => {
   const defaults = await getLibraryDefaults()
-  let _info
+  let _config
   if (process.argv.length <= 2) {
-    _info = await promptLibraryInfo(defaults)
+    _config = await promptLibraryConfig(defaults)
   } else {
-    _info = getInfoFromCmd(defaults)
+    _config = getConfigFromCmd(defaults)
   }
 
-  const info = getInfoWithDefaults(_info, defaults)
+  const config = getConfigWithDefaults(_config, defaults)
 
-  config.set('author', info.author)
-  config.set('fullname', info.fullname)
-  config.set('manager', info.manager)
-  config.set('license', info.license)
-  config.set('semanticallyReleased', info.semanticallyReleased)
+  defaultConfig.set('author', config.author)
+  defaultConfig.set('fullname', config.fullname)
+  defaultConfig.set('manager', config.manager)
+  defaultConfig.set('license', config.license)
+  defaultConfig.set('semanticallyReleased', config.semanticallyReleased)
 
-  await createLibrary(info)
+  await createLibrary(config)
 
-  return info
+  return config
 }
 
 module
   .exports()
-  .then(info => {
+  .then(config => {
     console.log(`
-Success! Created ${info.name} at ${info.dest}
+Success! Created ${config.name} at ${config.dest}
 We suggest that you begin by typing:
-  ${chalk.cyan('cd')} ${info._dest ? info._dest : info.shortName}
-  ${chalk.cyan(`${info.manager} start`)}
+  ${chalk.cyan('cd')} ${config._dest ? config._dest : config.shortName}
+  ${chalk.cyan(`${config.manager} start`)}
 `)
 
     process.exit(0)
